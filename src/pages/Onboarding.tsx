@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { supabase } from '../supabase/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -110,15 +109,20 @@ const Onboarding: React.FC = () => {
         progress: 'Not Started'
       };
       
-      // Update user profile in Firestore
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        name,
-        age: ageNum,
-        location,
-        skillsOffered: [offeredSkill],
-        skillsWanted: [wantedSkill],
-        profileCompleted: true
-      });
+      // Update user profile in Supabase
+      const { error } = await supabase
+        .from('users')
+        .update({
+          name,
+          age: ageNum,
+          location,
+          skillsOffered: [offeredSkill],
+          skillsWanted: [wantedSkill],
+          profileCompleted: true
+        })
+        .eq('uid', currentUser.id);
+      
+      if (error) throw error;
       
       navigate('/dashboard');
     } catch (err: any) {

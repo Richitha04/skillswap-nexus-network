@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { supabase } from '../supabase/config';
 import { Skill, UserProfile } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import SkillList from '@/components/SkillList';
@@ -235,14 +233,18 @@ const Dashboard: React.FC = () => {
         const offeredSkillNames = userProfile.skillsOffered.map(skill => skill.name.toLowerCase());
         
         // Find users who want skills I can offer
-        const potentialMatches = collection(db, 'users');
-        const snapshot = await getDocs(potentialMatches);
+        const { data: potentialMatches, error } = await supabase
+          .from('users')
+          .select('*')
+          .neq('uid', currentUser.id); // Skip current user
         
-        snapshot.forEach(doc => {
-          const userData = doc.data() as UserProfile;
-          
-          // Skip current user and users without completed profiles
-          if (userData.uid === currentUser.uid || !userData.profileCompleted) {
+        if (error) {
+          throw error;
+        }
+        
+        potentialMatches?.forEach(userData => {
+          // Skip users without completed profiles
+          if (!userData.profileCompleted) {
             return;
           }
           
@@ -258,7 +260,7 @@ const Dashboard: React.FC = () => {
           
           // If there's a two-way match, add to matches
           if (userOffersSkillIWant && userWantsSkillIOffer) {
-            matchesFound.push(userData);
+            matchesFound.push(userData as UserProfile);
           }
         });
         
@@ -288,18 +290,28 @@ const Dashboard: React.FC = () => {
         id: Date.now().toString()
       };
       
-      const userRef = doc(db, 'users', currentUser.uid);
-      
       if (skillDialogType === 'offer') {
         const updatedSkills = [...(userProfile.skillsOffered || []), newSkill];
-        await updateDoc(userRef, { skillsOffered: updatedSkills });
+        const { error } = await supabase
+          .from('users')
+          .update({ skillsOffered: updatedSkills })
+          .eq('uid', currentUser.id);
+          
+        if (error) throw error;
+        
         toast({
           title: 'Skill Added',
           description: `You can now offer ${newSkill.name}!`
         });
       } else {
         const updatedSkills = [...(userProfile.skillsWanted || []), newSkill];
-        await updateDoc(userRef, { skillsWanted: updatedSkills });
+        const { error } = await supabase
+          .from('users')
+          .update({ skillsWanted: updatedSkills })
+          .eq('uid', currentUser.id);
+          
+        if (error) throw error;
+        
         toast({
           title: 'Skill Added',
           description: `${newSkill.name} added to your learning list!`
@@ -320,22 +332,32 @@ const Dashboard: React.FC = () => {
     if (!currentUser || !userProfile || !editingSkill) return;
     
     try {
-      const userRef = doc(db, 'users', currentUser.uid);
-      
       if (skillDialogType === 'offer') {
         const updatedSkills = userProfile.skillsOffered.map(skill => 
           skill.id === editingSkill.id 
             ? { ...updatedSkill, id: editingSkill.id } 
             : skill
         );
-        await updateDoc(userRef, { skillsOffered: updatedSkills });
+        
+        const { error } = await supabase
+          .from('users')
+          .update({ skillsOffered: updatedSkills })
+          .eq('uid', currentUser.id);
+          
+        if (error) throw error;
       } else {
         const updatedSkills = userProfile.skillsWanted.map(skill => 
           skill.id === editingSkill.id 
             ? { ...updatedSkill, id: editingSkill.id } 
             : skill
         );
-        await updateDoc(userRef, { skillsWanted: updatedSkills });
+        
+        const { error } = await supabase
+          .from('users')
+          .update({ skillsWanted: updatedSkills })
+          .eq('uid', currentUser.id);
+          
+        if (error) throw error;
       }
       
       toast({
@@ -357,14 +379,24 @@ const Dashboard: React.FC = () => {
     if (!currentUser || !userProfile) return;
     
     try {
-      const userRef = doc(db, 'users', currentUser.uid);
-      
       if (type === 'offer') {
         const updatedSkills = userProfile.skillsOffered.filter(skill => skill.id !== skillId);
-        await updateDoc(userRef, { skillsOffered: updatedSkills });
+        
+        const { error } = await supabase
+          .from('users')
+          .update({ skillsOffered: updatedSkills })
+          .eq('uid', currentUser.id);
+          
+        if (error) throw error;
       } else {
         const updatedSkills = userProfile.skillsWanted.filter(skill => skill.id !== skillId);
-        await updateDoc(userRef, { skillsWanted: updatedSkills });
+        
+        const { error } = await supabase
+          .from('users')
+          .update({ skillsWanted: updatedSkills })
+          .eq('uid', currentUser.id);
+          
+        if (error) throw error;
       }
       
       toast({
