@@ -88,14 +88,14 @@ const SkillDialog: React.FC<SkillDialogProps> = ({
 
   const handleSave = () => {
     if (!name.trim()) return;
-    
+
     onSave({
       name: name.trim(),
       category,
       level,
       progress
     });
-    
+
     onClose();
   };
 
@@ -107,12 +107,12 @@ const SkillDialog: React.FC<SkillDialogProps> = ({
             {initialSkill ? 'Edit Skill' : type === 'offer' ? 'Add Skill to Offer' : 'Add Skill to Learn'}
           </DialogTitle>
           <DialogDescription>
-            {type === 'offer' 
+            {type === 'offer'
               ? 'Add a skill you can teach others'
               : 'Add a skill you want to learn'}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">Skill Name</Label>
@@ -123,7 +123,7 @@ const SkillDialog: React.FC<SkillDialogProps> = ({
               placeholder={type === 'offer' ? "JavaScript Programming" : "Spanish Language"}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <Select value={category} onValueChange={setCategory}>
@@ -139,13 +139,13 @@ const SkillDialog: React.FC<SkillDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="level">
               {type === 'offer' ? 'Your Proficiency Level' : 'Desired Learning Level'}
             </Label>
-            <Select 
-              value={level} 
+            <Select
+              value={level}
               onValueChange={(value) => setLevel(value as typeof skillLevels[number])}
             >
               <SelectTrigger>
@@ -160,11 +160,11 @@ const SkillDialog: React.FC<SkillDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="progress">Learning Progress</Label>
-            <Select 
-              value={progress} 
+            <Select
+              value={progress}
               onValueChange={(value) => setProgress(value as typeof progressStatuses[number])}
             >
               <SelectTrigger>
@@ -180,7 +180,7 @@ const SkillDialog: React.FC<SkillDialogProps> = ({
             </Select>
           </div>
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} className="bg-skyblue hover:bg-skyblue-dark">
@@ -197,7 +197,7 @@ const Dashboard: React.FC = () => {
   const { currentUser, userProfile, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [skillDialogOpen, setSkillDialogOpen] = useState(false);
   const [skillDialogType, setSkillDialogType] = useState<'offer' | 'want'>('offer');
   const [editingSkill, setEditingSkill] = useState<Skill | undefined>(undefined);
@@ -210,95 +210,92 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!isLoading && !currentUser) {
       navigate('/login');
+      return;
     }
-    
+
     // If user hasn't completed profile, redirect to onboarding
-    if (!isLoading && currentUser && userProfile && !userProfile.profileCompleted) {
+    if (!isLoading && currentUser && (!userProfile || !userProfile.profileCompleted)) {
       navigate('/onboarding');
+      return;
+    }
+
+    // Load matches when profile is available
+    if (currentUser && userProfile && userProfile.profileCompleted) {
+      fetchMatches();
     }
   }, [currentUser, isLoading, navigate, userProfile]);
 
-  // Load matches when profile changes
-  useEffect(() => {
-    const fetchMatches = async () => {
-      if (!currentUser || !userProfile || !userProfile.skillsWanted || !userProfile.skillsOffered) return;
-      
-      setIsLoadingMatches(true);
-      
-      try {
-        const matchesFound: UserProfile[] = [];
-        
-        // Get skills names for matching
-        const wantedSkillNames = userProfile.skillsWanted.map(skill => skill.name.toLowerCase());
-        const offeredSkillNames = userProfile.skillsOffered.map(skill => skill.name.toLowerCase());
-        
-        // Find users who want skills I can offer
-        const { data: potentialMatches, error } = await supabase
-          .from('users')
-          .select('*')
-          .neq('uid', currentUser.id); // Skip current user
-        
-        if (error) {
-          throw error;
-        }
-        
-        potentialMatches?.forEach(userData => {
-          // Skip users without completed profiles
-          if (!userData.profileCompleted) {
-            return;
-          }
-          
-          // Check if this user offers any skills I want
-          const userOffersSkillIWant = userData.skillsOffered?.some(skill => 
-            wantedSkillNames.includes(skill.name.toLowerCase())
-          );
-          
-          // Check if this user wants any skills I offer
-          const userWantsSkillIOffer = userData.skillsWanted?.some(skill => 
-            offeredSkillNames.includes(skill.name.toLowerCase())
-          );
-          
-          // If there's a two-way match, add to matches
-          if (userOffersSkillIWant && userWantsSkillIOffer) {
-            matchesFound.push(userData as UserProfile);
-          }
-        });
-        
-        setMatches(matchesFound);
-      } catch (error) {
-        console.error('Error fetching matches:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load matches',
-          variant: 'destructive'
-        });
-      } finally {
-        setIsLoadingMatches(false);
+  const fetchMatches = async () => {
+    if (!currentUser || !userProfile || !userProfile.skillsWanted || !userProfile.skillsOffered) return;
+
+    setIsLoadingMatches(true);
+
+    try {
+      const matchesFound: UserProfile[] = [];
+
+      // Get skills names for matching
+      const wantedSkillNames = userProfile.skillsWanted.map(skill => skill.name.toLowerCase());
+      const offeredSkillNames = userProfile.skillsOffered.map(skill => skill.name.toLowerCase());
+
+      // Find users who want skills I can offer
+      const { data: potentialMatches, error } = await supabase
+        .from('users')
+        .select('*')
+        .neq('uid', currentUser.id) // Skip current user
+        .eq('profileCompleted', true); // Only get completed profiles
+
+      if (error) {
+        throw error;
       }
-    };
-    
-    fetchMatches();
-  }, [currentUser, userProfile, toast]);
+
+      potentialMatches?.forEach(userData => {
+        const userSkillsOffered = userData.skillsOffered || [];
+        const userSkillsWanted = userData.skillsWanted || [];
+
+        // Check if there's a match between what I offer and what they want
+        const hasMatch = userSkillsWanted.some(wantedSkill =>
+          offeredSkillNames.includes(wantedSkill.name.toLowerCase())
+        ) && userSkillsOffered.some(offeredSkill =>
+          wantedSkillNames.includes(offeredSkill.name.toLowerCase())
+        );
+
+        if (hasMatch) {
+          matchesFound.push(userData as UserProfile);
+        }
+      });
+
+      setMatches(matchesFound);
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load potential matches',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoadingMatches(false);
+    }
+  };
 
   // Add a new skill
   const handleAddSkill = async (skill: Omit<Skill, 'id'>) => {
     if (!currentUser || !userProfile) return;
-    
+
     try {
       const newSkill: Skill = {
         ...skill,
         id: Date.now().toString()
       };
-      
+
       if (skillDialogType === 'offer') {
         const updatedSkills = [...(userProfile.skillsOffered || []), newSkill];
         const { error } = await supabase
           .from('users')
           .update({ skillsOffered: updatedSkills })
           .eq('uid', currentUser.id);
-          
+
         if (error) throw error;
-        
+
         toast({
           title: 'Skill Added',
           description: `You can now offer ${newSkill.name}!`
@@ -309,9 +306,9 @@ const Dashboard: React.FC = () => {
           .from('users')
           .update({ skillsWanted: updatedSkills })
           .eq('uid', currentUser.id);
-          
+
         if (error) throw error;
-        
+
         toast({
           title: 'Skill Added',
           description: `${newSkill.name} added to your learning list!`
@@ -330,36 +327,36 @@ const Dashboard: React.FC = () => {
   // Update an existing skill
   const handleUpdateSkill = async (updatedSkill: Omit<Skill, 'id'>) => {
     if (!currentUser || !userProfile || !editingSkill) return;
-    
+
     try {
       if (skillDialogType === 'offer') {
-        const updatedSkills = userProfile.skillsOffered.map(skill => 
-          skill.id === editingSkill.id 
-            ? { ...updatedSkill, id: editingSkill.id } 
+        const updatedSkills = userProfile.skillsOffered.map(skill =>
+          skill.id === editingSkill.id
+            ? { ...updatedSkill, id: editingSkill.id }
             : skill
         );
-        
+
         const { error } = await supabase
           .from('users')
           .update({ skillsOffered: updatedSkills })
           .eq('uid', currentUser.id);
-          
+
         if (error) throw error;
       } else {
-        const updatedSkills = userProfile.skillsWanted.map(skill => 
-          skill.id === editingSkill.id 
-            ? { ...updatedSkill, id: editingSkill.id } 
+        const updatedSkills = userProfile.skillsWanted.map(skill =>
+          skill.id === editingSkill.id
+            ? { ...updatedSkill, id: editingSkill.id }
             : skill
         );
-        
+
         const { error } = await supabase
           .from('users')
           .update({ skillsWanted: updatedSkills })
           .eq('uid', currentUser.id);
-          
+
         if (error) throw error;
       }
-      
+
       toast({
         title: 'Skill Updated',
         description: `${updatedSkill.name} has been updated!`
@@ -377,28 +374,28 @@ const Dashboard: React.FC = () => {
   // Delete a skill
   const handleDeleteSkill = async (skillId: string, type: 'offer' | 'want') => {
     if (!currentUser || !userProfile) return;
-    
+
     try {
       if (type === 'offer') {
         const updatedSkills = userProfile.skillsOffered.filter(skill => skill.id !== skillId);
-        
+
         const { error } = await supabase
           .from('users')
           .update({ skillsOffered: updatedSkills })
           .eq('uid', currentUser.id);
-          
+
         if (error) throw error;
       } else {
         const updatedSkills = userProfile.skillsWanted.filter(skill => skill.id !== skillId);
-        
+
         const { error } = await supabase
           .from('users')
           .update({ skillsWanted: updatedSkills })
           .eq('uid', currentUser.id);
-          
+
         if (error) throw error;
       }
-      
+
       toast({
         title: 'Skill Removed',
         description: 'The skill has been removed from your profile'
@@ -439,20 +436,20 @@ const Dashboard: React.FC = () => {
   // Filter matches by search query and category
   const filteredMatches = matches.filter(match => {
     // Filter by search query
-    const matchesSearchQuery = searchQuery === '' || 
+    const matchesSearchQuery = searchQuery === '' ||
       match.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      match.skillsOffered.some(skill => 
+      match.skillsOffered.some(skill =>
         skill.name.toLowerCase().includes(searchQuery.toLowerCase())
       ) ||
-      match.skillsWanted.some(skill => 
+      match.skillsWanted.some(skill =>
         skill.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
-    
+
     // Filter by category
     const matchesCategory = categoryFilter === '' ||
       match.skillsOffered.some(skill => skill.category === categoryFilter) ||
       match.skillsWanted.some(skill => skill.category === categoryFilter);
-    
+
     return matchesSearchQuery && matchesCategory;
   });
 
@@ -467,32 +464,32 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
-      
+
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-darkblack">Welcome, {userProfile.name || 'User'}!</h1>
           <p className="text-gray-600">Manage your skills and find matches</p>
         </div>
-        
+
         <Tabs defaultValue="skills">
           <TabsList className="mb-6">
             <TabsTrigger value="skills">My Skills</TabsTrigger>
             <TabsTrigger value="matches">Matches</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="skills" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <SkillList 
-                skills={userProfile.skillsOffered || []} 
+              <SkillList
+                skills={userProfile.skillsOffered || []}
                 title="Skills I Can Offer"
                 emptyMessage="You haven't added any skills you can offer yet."
                 onAddSkill={() => openAddSkillDialog('offer')}
                 onEditSkill={(skill) => openEditSkillDialog(skill, 'offer')}
                 onDeleteSkill={(skillId) => handleDeleteSkill(skillId, 'offer')}
               />
-              
-              <SkillList 
-                skills={userProfile.skillsWanted || []} 
+
+              <SkillList
+                skills={userProfile.skillsWanted || []}
                 title="Skills I Want to Learn"
                 emptyMessage="You haven't added any skills you want to learn yet."
                 onAddSkill={() => openAddSkillDialog('want')}
@@ -501,7 +498,7 @@ const Dashboard: React.FC = () => {
               />
             </div>
           </TabsContent>
-          
+
           <TabsContent value="matches">
             <Card>
               <CardHeader>
@@ -512,7 +509,7 @@ const Dashboard: React.FC = () => {
                       Users who want to learn what you offer and can teach what you want
                     </CardDescription>
                   </div>
-                  
+
                   <div className="flex flex-col sm:flex-row gap-2 mt-4 md:mt-0">
                     <div className="flex items-center border rounded-md bg-white overflow-hidden">
                       <Input
@@ -525,7 +522,7 @@ const Dashboard: React.FC = () => {
                         <Search className="h-4 w-4" />
                       </Button>
                     </div>
-                    
+
                     <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                       <SelectTrigger className="w-full sm:w-[180px]">
                         <SelectValue placeholder="Filter by category" />
@@ -542,7 +539,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent>
                 {isLoadingMatches ? (
                   <div className="text-center py-8">Loading matches...</div>
@@ -560,16 +557,16 @@ const Dashboard: React.FC = () => {
                           <div className="p-4 md:w-1/4 bg-gray-50">
                             <h3 className="text-lg font-semibold">{match.name}</h3>
                             <p className="text-gray-500 text-sm">{match.location}</p>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="mt-2 text-skyblue border-skyblue hover:bg-skyblue hover:text-white"
                               onClick={() => navigate(`/chat/${match.uid}`)}
                             >
                               Message
                             </Button>
                           </div>
-                          
+
                           <div className="p-4 md:w-3/4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
@@ -578,7 +575,7 @@ const Dashboard: React.FC = () => {
                                 </h4>
                                 <div className="space-y-1">
                                   {match.skillsOffered
-                                    .filter(skill => 
+                                    .filter(skill =>
                                       userProfile.skillsWanted.some(
                                         wanted => wanted.name.toLowerCase() === skill.name.toLowerCase()
                                       )
@@ -591,14 +588,14 @@ const Dashboard: React.FC = () => {
                                   }
                                 </div>
                               </div>
-                              
+
                               <div>
                                 <h4 className="font-medium text-sm text-gray-500 mb-2">
                                   Skills They Want:
                                 </h4>
                                 <div className="space-y-1">
                                   {match.skillsWanted
-                                    .filter(skill => 
+                                    .filter(skill =>
                                       userProfile.skillsOffered.some(
                                         offered => offered.name.toLowerCase() === skill.name.toLowerCase()
                                       )
@@ -623,7 +620,7 @@ const Dashboard: React.FC = () => {
           </TabsContent>
         </Tabs>
       </main>
-      
+
       <SkillDialog
         isOpen={skillDialogOpen}
         onClose={() => setSkillDialogOpen(false)}

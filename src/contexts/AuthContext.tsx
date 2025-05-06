@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../supabase/config';
@@ -13,6 +12,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isNewUser: boolean;
   setIsNewUser: (value: boolean) => void;
+  setUserProfile: (profile: UserProfile | null) => void;
 }
 
 export interface UserProfile {
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setCurrentUser(session?.user ?? null);
-        
+
         if (session?.user) {
           try {
             // Fetch user profile from Supabase
@@ -64,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .select('*')
               .eq('uid', session.user.id)
               .single();
-            
+
             if (error) {
               console.error('Error fetching user profile:', error);
               setIsNewUser(true);
@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setUserProfile(null);
         }
-        
+
         setIsLoading(false);
       }
     );
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setCurrentUser(session?.user ?? null);
-      
+
       if (session?.user) {
         try {
           // Fetch user profile from Supabase
@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .select('*')
             .eq('uid', session.user.id)
             .single();
-          
+
           if (error) {
             console.error('Error fetching user profile:', error);
             setIsNewUser(true);
@@ -117,10 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error fetching user profile:', error);
         }
       }
-      
+
       setIsLoading(false);
     };
-    
+
     checkUser();
 
     return () => {
@@ -135,11 +135,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
       });
-      
+
       if (error) throw error;
-      
+
       setIsNewUser(true);
-      
+
       if (data.user) {
         // Create an empty user profile
         const { error: profileError } = await supabase
@@ -149,15 +149,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: email,
             profileCompleted: false,
             skillsOffered: [],
-            skillsWanted: []
+            skillsWanted: [],
+            name: '',
+            age: 0,
+            location: ''
           });
-        
+
         if (profileError) throw profileError;
       }
-      
+
       toast({
         title: 'Account created',
-        description: 'Your account has been created successfully!'
+        description: 'Your account has been created successfully! Please complete your profile.'
       });
     } catch (error: any) {
       console.error('Error signing up:', error);
@@ -179,9 +182,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
       });
-      
+
       if (error) throw error;
-      
+
       toast({
         title: 'Welcome back!',
         description: 'You have successfully logged in.'
@@ -203,9 +206,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) throw error;
-      
+
       toast({
         title: 'Logged out',
         description: 'You have been successfully logged out.'
@@ -231,7 +234,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     isNewUser,
-    setIsNewUser
+    setIsNewUser,
+    setUserProfile
   };
 
   return (

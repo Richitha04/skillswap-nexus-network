@@ -40,7 +40,7 @@ const skillLevels = ['Beginner', 'Intermediate', 'Expert'] as const;
 const progressStatuses = ['Not Started', 'In Progress', 'Mastered'] as const;
 
 const Onboarding: React.FC = () => {
-  const { currentUser, userProfile, isLoading } = useAuth();
+  const { currentUser, userProfile, isLoading, setUserProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -154,12 +154,27 @@ const Onboarding: React.FC = () => {
 
       if (error) throw error;
 
+      // Refresh the user profile in the auth context
+      const { data: updatedProfile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('uid', currentUser.id)
+        .single();
+
+      if (updatedProfile) {
+        // Update the auth context
+        setUserProfile(updatedProfile as UserProfile);
+      }
+
       toast({
         title: 'Profile Completed',
-        description: 'Your profile has been successfully set up!'
+        description: 'Your profile has been successfully set up! Redirecting to dashboard...'
       });
 
-      navigate('/dashboard');
+      // Add a small delay before navigation to show the success message
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
     } catch (err: any) {
       console.error('Error updating profile:', err);
       setError(err.message || 'Failed to update profile');
