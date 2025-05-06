@@ -13,6 +13,8 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
+import WaitingList from "./pages/WaitingList";
+import Availability from "./pages/Availability";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +41,16 @@ const App = () => (
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/waiting-list" element={
+              <ProtectedRoute>
+                <WaitingList />
+              </ProtectedRoute>
+            } />
+            <Route path="/availability" element={
+              <ProtectedRoute>
+                <Availability />
               </ProtectedRoute>
             } />
             

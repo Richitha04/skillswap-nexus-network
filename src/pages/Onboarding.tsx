@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import Navbar from '@/components/Navbar';
 import { Skill } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
 
 // Skill categories
 const skillCategories = [
@@ -41,6 +42,7 @@ const progressStatuses = ['Not Started', 'In Progress', 'Mastered'] as const;
 const Onboarding: React.FC = () => {
   const { currentUser, userProfile, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -124,10 +126,21 @@ const Onboarding: React.FC = () => {
       
       if (error) throw error;
       
+      toast({
+        title: 'Profile Completed',
+        description: 'Your profile has been successfully set up!'
+      });
+      
       navigate('/dashboard');
     } catch (err: any) {
       console.error('Error updating profile:', err);
       setError(err.message || 'Failed to update profile');
+      
+      toast({
+        title: 'Error',
+        description: 'Failed to complete your profile. Please try again.',
+        variant: 'destructive'
+      });
     } finally {
       setIsSubmitting(false);
     }
