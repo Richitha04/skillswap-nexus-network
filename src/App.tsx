@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +14,7 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import WaitingList from "./pages/WaitingList";
 import Availability from "./pages/Availability";
+import Matches from "./pages/Matches";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +53,8 @@ const App = () => (
                 <Availability />
               </ProtectedRoute>
             } />
+            <Route path="/matches" element={<Matches />} />
+
             
             {/* 404 route */}
             <Route path="*" element={<NotFound />} />
