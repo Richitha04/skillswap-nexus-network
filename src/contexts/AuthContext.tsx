@@ -1,14 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged,
-  User
-} from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase/config';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '../supabase/config';
 import { useToast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
@@ -59,51 +52,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setCurrentUser(session?.user ?? null);
+        
+        if (session?.user) {
+          try {
+            // Fetch user profile from Supabase
+            const { data, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('uid', session.user.id)
+              .single();
+            
+            if (error) {
+              console.error('Error fetching user profile:', error);
+              setIsNewUser(true);
+            } else if (data) {
+              setUserProfile(data as UserProfile);
+            } else {
+              // New user, no profile yet
+              setIsNewUser(true);
+            }
+          } catch (error) {
+            console.error('Error fetching user profile:', error);
+            toast({
+              title: 'Error',
+              description: 'Failed to load user profile',
+              variant: 'destructive'
+            });
+          }
+        } else {
+          setUserProfile(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // Initial session check
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUser(session?.user ?? null);
       
-      if (user) {
+      if (session?.user) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          // Fetch user profile from Supabase
+          const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('uid', session.user.id)
+            .single();
           
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data() as UserProfile);
+          if (error) {
+            console.error('Error fetching user profile:', error);
+            setIsNewUser(true);
+          } else if (data) {
+            setUserProfile(data as UserProfile);
           } else {
             // New user, no profile yet
             setIsNewUser(true);
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to load user profile',
-            variant: 'destructive'
-          });
         }
-      } else {
-        setUserProfile(null);
       }
       
       setIsLoading(false);
-    });
+    };
+    
+    checkUser();
 
-    return unsubscribe;
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [toast]);
 
   const signup = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
       setIsNewUser(true);
       
-      // Create an empty user profile
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        uid: userCredential.user.uid,
-        email: email,
-        profileCompleted: false,
-        skillsOffered: [],
-        skillsWanted: []
-      });
+      if (data.user) {
+        // Create an empty user profile
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert({
+            uid: data.user.id,
+            email: email,
+            profileCompleted: false,
+            skillsOffered: [],
+            skillsWanted: []
+          });
+        
+        if (profileError) throw profileError;
+      }
       
       toast({
         title: 'Account created',
@@ -125,7 +175,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      await signInWithEmailAndPassword(auth, email, password);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
       toast({
         title: 'Welcome back!',
         description: 'You have successfully logged in.'
@@ -146,7 +202,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       setIsLoading(true);
-      await signOut(auth);
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
+      
       toast({
         title: 'Logged out',
         description: 'You have been successfully logged out.'

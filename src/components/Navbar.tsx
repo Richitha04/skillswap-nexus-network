@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { LogOut, Menu, User } from 'lucide-react';
@@ -16,6 +16,7 @@ import {
 const Navbar: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
@@ -36,13 +37,13 @@ const Navbar: React.FC = () => {
         <nav className="hidden md:flex items-center space-x-6">
           {currentUser ? (
             <>
-              <Link to="/dashboard" className="hover:text-skyblue transition-colors">
+              <Link to="/dashboard" className={`hover:text-skyblue transition-colors ${location.pathname === '/dashboard' ? 'text-skyblue' : ''}`}>
                 Dashboard
               </Link>
-              <Link to="/matches" className="hover:text-skyblue transition-colors">
+              <Link to="/matches" className={`hover:text-skyblue transition-colors ${location.pathname === '/matches' ? 'text-skyblue' : ''}`}>
                 Matches
               </Link>
-              <Link to="/waiting-list" className="hover:text-skyblue transition-colors">
+              <Link to="/waiting-list" className={`hover:text-skyblue transition-colors ${location.pathname === '/waiting-list' ? 'text-skyblue' : ''}`}>
                 Waiting List
               </Link>
               <DropdownMenu>
@@ -70,7 +71,7 @@ const Navbar: React.FC = () => {
             </>
           ) : (
             <>
-              <Link to="/login" className="hover:text-skyblue transition-colors">
+              <Link to="/login" className={`hover:text-skyblue transition-colors ${location.pathname === '/login' ? 'text-skyblue' : ''}`}>
                 Login
               </Link>
               <Link to="/signup">
